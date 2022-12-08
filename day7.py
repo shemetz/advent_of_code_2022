@@ -38,7 +38,7 @@ current_path: List[Directory] = [top_level_directory]  # index -1 is current dir
 for line in input_lines:
     current_directory = current_path[-1]
     if line.startswith('$ cd /'):
-        current_path[-1] = top_level_directory
+        current_path = [top_level_directory]
     elif line.startswith('$ cd ..'):
         current_path.pop()
     elif line.startswith('$ cd '):  # (+name)
