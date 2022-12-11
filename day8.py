@@ -9,89 +9,70 @@ with open('day8.txt') as input_file:
 forest = [[int(c) for c in line] for line in input_lines]
 width = len(forest[0])
 height = len(forest)
-visible = [[False for _ in range(width)] for _ in range(height)]
+visibility_calculation_grid = [[False for _ in range(width)] for _ in range(height)]
 
-for y in range(height):
-    # row by row, left to right
+
+def calc_one_directional_visibility(upper_index, is_row_or_col, width_or_height, is_reversed):
+    lower_index_range = range(width_or_height)
+    if is_reversed:
+        lower_index_range = reversed(lower_index_range)
     tallest = -1
-    for x in range(width):
-        tree = forest[y][x]
+    for lower_index in lower_index_range:
+        tree = forest[upper_index][lower_index] if is_row_or_col else forest[lower_index][upper_index]
         if tree > tallest:
             tallest = tree
-            visible[y][x] = True
-    tallest = -1
-    # row by row, right to left
-    for x in reversed(range(width)):
-        tree = forest[y][x]
-        if tree > tallest:
-            tallest = tree
-            visible[y][x] = True
-for x in range(width):
-    # column by column, top to bottom
-    tallest = -1
+            if is_row_or_col:
+                visibility_calculation_grid[upper_index][lower_index] = True
+            else:
+                visibility_calculation_grid[lower_index][upper_index] = True
+
+
+def run_function_once_per_grid_direction(func):
     for y in range(height):
-        tree = forest[y][x]
-        if tree > tallest:
-            tallest = tree
-            visible[y][x] = True
-    # column by column, bottom to top
-    tallest = -1
-    for y in reversed(range(height)):
-        tree = forest[y][x]
-        if tree > tallest:
-            tallest = tree
-            visible[y][x] = True
+        # row by row, left to right
+        func(y, True, width, False)
+        # row by row, right to left
+        func(y, True, width, True)
+    for x in range(width):
+        # column by column, top to bottom
+        func(x, False, height, False)
+        # column by column, bottom to top
+        func(x, False, height, True)
 
-# for line in visible:
-#     print(''.join(str(int(c)) for c in line))
-# converting bools into ints, summing them up
-visible_count = sum(sum(int(c) for c in row) for row in visible)
+
+run_function_once_per_grid_direction(calc_one_directional_visibility)
+visible_count = sum(sum(int(c) for c in row) for row in visibility_calculation_grid)
 print(visible_count)  # 1543
 
 # part 2 - scenic scores
 # optimization is lesser but still exists:  we'll track the most recent index of each tree height (only 10 possibilities),
 # per pass.  so total number of checks is about 100 * 100 * 4 * 10
 # each pass, we'll multiply each tree's position in the calculation grid by how many trees it sees to its left.
-calculation_grid = [[1 for _ in range(width)] for _ in range(height)]
+viewing_distance_calculation_grid = [[1 for _ in range(width)] for _ in range(height)]
 TEN = 10
 
-for y in range(height):
-    # row by row, left to right
-    recentmost_per_height = [-999 for _ in range(TEN)]
-    for x in range(width):
-        tree_height = forest[y][x]
-        recentmost_blocking = max(recentmost_per_height[tree_height:])
-        viewing_distance = abs(x - recentmost_blocking) if recentmost_blocking != -999 else x
-        calculation_grid[y][x] *= viewing_distance
-        recentmost_per_height[tree_height] = x
-    # row by row, right to left
-    recentmost_per_height = [999 for _ in range(TEN)]
-    for x in reversed(range(width)):
-        tree_height = forest[y][x]
-        recentmost_blocking = min(recentmost_per_height[tree_height:])
-        viewing_distance = abs(x - recentmost_blocking) if recentmost_blocking != 999 else width - x - 1
-        calculation_grid[y][x] *= viewing_distance
-        recentmost_per_height[tree_height] = x
-for x in range(width):
-    # column by column, top to bottom
-    recentmost_per_height = [-999 for _ in range(TEN)]
-    for y in range(height):
-        tree_height = forest[y][x]
-        recentmost_blocking = max(recentmost_per_height[tree_height:])
-        viewing_distance = abs(y - recentmost_blocking) if recentmost_blocking != -999 else y
-        calculation_grid[y][x] *= viewing_distance
-        recentmost_per_height[tree_height] = y
-    # column by column, bottom to top
-    recentmost_per_height = [999 for _ in range(TEN)]
-    for y in reversed(range(height)):
-        tree_height = forest[y][x]
-        recentmost_blocking = min(recentmost_per_height[tree_height:])
-        viewing_distance = abs(y - recentmost_blocking) if recentmost_blocking != 999 else height - y - 1
-        calculation_grid[y][x] *= viewing_distance
-        recentmost_per_height[tree_height] = y
 
+def calc_one_directional_viewing_distances(upper_index, is_row_or_col, width_or_height, is_reversed):
+    lower_index_range = range(width_or_height)
+    if is_reversed:
+        lower_index_range = reversed(lower_index_range)
+    edge_marker = width_or_height if is_reversed else -1
+    recentmost_per_height = [edge_marker for _ in range(TEN)]
+    max_or_min = min if is_reversed else max
+    for lower_index in lower_index_range:
+        tree_height = forest[upper_index][lower_index] if is_row_or_col else forest[lower_index][upper_index]
+        recentmost_blocking = max_or_min(recentmost_per_height[tree_height:])
+        viewing_distance = abs(lower_index - recentmost_blocking) if recentmost_blocking != edge_marker else (
+            width_or_height - lower_index - 1 if is_reversed else lower_index
+        )
+        if is_row_or_col:
+            viewing_distance_calculation_grid[upper_index][lower_index] *= viewing_distance
+        else:
+            viewing_distance_calculation_grid[lower_index][upper_index] *= viewing_distance
+        recentmost_per_height[tree_height] = lower_index
+
+
+run_function_once_per_grid_direction(calc_one_directional_viewing_distances)
 # now we need to find the best one
-best_scenic_score = max(max(scenic_score for scenic_score in row) for row in calculation_grid)
-print(best_scenic_score)  # not 820800, too high
-
-# TODO - refactor to have less copied code
+best_scenic_score = max(max(scenic_score for scenic_score in row) for row in viewing_distance_calculation_grid)
+print(best_scenic_score)  # 595080
