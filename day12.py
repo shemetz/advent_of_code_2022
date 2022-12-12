@@ -31,16 +31,22 @@ width = heightmap.shape[1]
 # doing pathfinding, from end to start/a, because of part 2
 MARKER_NOT_VISITED = -1
 distances_to_get_to_places = np.full(heightmap.shape, MARKER_NOT_VISITED)
-frontier: List[Tuple[int, int]] = [(e_row, e_col)]
+frontier: List[Tuple[int, int, List[Tuple[int, int]]]] = [(e_row, e_col, [(e_row, e_col)])]
 distances_to_get_to_places[e_row, e_col] = 0
 found_closest_a_already = False
+path_visu = heightmap_str.copy()
 while frontier:
-    row, col = frontier.pop(0)
+    row, col, path_so_far = frontier.pop(0)
     if heightmap_str[row, col] == 'S':
         print(f"Part 1, Reached S from E after distance: {distances_to_get_to_places[row, col]}")  # 412
+        for r, c in path_so_far:
+            if path_visu[r, c] != '▇':
+                path_visu[r, c] = '▒'
         break  # breaking because parts 1+2 were done by now
     if not found_closest_a_already and heightmap_str[row, col] == 'a':
         print(f"Part 2, Reached a from E after distance: {distances_to_get_to_places[row, col]}")
+        for r, c in path_so_far:
+            path_visu[r, c] = '▇'
         found_closest_a_already = True
     for delta_r, delta_c in [(-1, 0), (0, -1), (0, +1), (+1, 0)]:
         next_r, next_c = row + delta_r, col + delta_c
@@ -51,5 +57,10 @@ while frontier:
                 # altitude check
                 if heightmap[next_r, next_c] >= heightmap[row, col] - 1:
                     next_position = (next_r, next_c)
-                    frontier.append(next_position)
+                    new_path = path_so_far.copy()
+                    new_path.append(next_position)
+                    frontier.append((next_r, next_c, new_path))
                     distances_to_get_to_places[next_r, next_c] = distances_to_get_to_places[row, col] + 1
+
+# nice visualization
+print('\n'.join(''.join(str(cell) for cell in row) for row in path_visu))
