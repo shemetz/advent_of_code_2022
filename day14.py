@@ -54,32 +54,33 @@ def generate_cave():
 generate_cave()
 
 # simulate
-active_sand = SAND_ORIGIN
+current_sand_path_list = [SAND_ORIGIN]
 while True:
+    active_sand = current_sand_path_list[-1]
     x, y = active_sand
     if y + 1 == max_y:
         # falling down out of bounds
         break
     if cave[x, y + 1] == AIR:
-        active_sand = (x, y + 1)
+        current_sand_path_list.append((x, y + 1))
     elif x == min_x:
         # falling down-left out of bounds
         break
     elif cave[x - 1, y + 1] == AIR:
-        active_sand = (x - 1, y + 1)
+        current_sand_path_list.append((x - 1, y + 1))
     elif x + 1 == max_x:
         # falling down-right out of bounds
         break
     elif cave[x + 1, y + 1] == AIR:
-        active_sand = (x + 1, y + 1)
+        current_sand_path_list.append((x + 1, y + 1))
     else:  # needs to rest
         cave[active_sand] = SAND
-        active_sand = SAND_ORIGIN
-
-print('Part 1 solution:', (cave == SAND).sum())
+        current_sand_path_list.pop()
 
 # visualization
 print('\n'.join(''.join(str(cell) for cell in row) for row in cave.transpose()))
+
+print('Part 1 solution:', (cave == SAND).sum())
 
 print('Simulating part 2 now...')
 
@@ -100,21 +101,23 @@ generate_cave()
 cave[min_x:max_x, max_y - 1:max_y] = ROCK
 
 # simulate
-active_sand = SAND_ORIGIN
+current_sand_path_list = [SAND_ORIGIN]
 while True:
+    active_sand = current_sand_path_list[-1]
     x, y = active_sand
     if cave[x, y + 1] == AIR:
-        active_sand = (x, y + 1)
+        current_sand_path_list.append((x, y + 1))
     elif cave[x - 1, y + 1] == AIR:
-        active_sand = (x - 1, y + 1)
+        current_sand_path_list.append((x - 1, y + 1))
     elif cave[x + 1, y + 1] == AIR:
-        active_sand = (x + 1, y + 1)
+        current_sand_path_list.append((x + 1, y + 1))
     else:  # needs to rest
         cave[active_sand] = SAND
-        if active_sand == SAND_ORIGIN:
+        current_sand_path_list.pop()
+        if len(current_sand_path_list) == 0:
             break
-        active_sand = SAND_ORIGIN
 
-print('Part 2 solution:', (cave == SAND).sum())  # 25193
 # visualization
 print('\n'.join(''.join(str(cell) for cell in row) for row in cave.transpose()))
+
+print('Part 2 solution:', (cave == SAND).sum())  # 25193
