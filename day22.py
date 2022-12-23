@@ -1,5 +1,4 @@
 import os
-import random
 import re
 from time import sleep
 
@@ -89,7 +88,7 @@ while facing != 0:
     facing -= 1
 
 board[position] = '▇'
-# print_board()
+print_board()
 print(position, final_facing)
 
 final_row = position[0] + 1
@@ -168,7 +167,7 @@ else:  # MY REAL INPUT
     big_cube[1:0 + b, 1:0 + b, 0:1 + 0] = slice_face_view(0, 1, False, 0, (s, s, 1))  # 1 3  5 7
     big_cube[b:1 + b, 1:0 + b, 1:0 + b] = slice_face_view(1, 1, True, 0, (1, s, s))  # 5 7  6 8
     big_cube[1:0 + b, 0:1 + 0, 1:0 + b] = slice_face_view(2, 0, True, 1, (s, 1, s))  # 5 6  1 2
-    big_cube[0:1 + 0, 1:0 + b, 1:0 + b] = slice_face_view(3, 0, False, 2, (1, s, s))  # 1 2  3 4
+    big_cube[0:1 + 0, 1:0 + b, 1:0 + b] = slice_face_view(3, 0, False, 0, (1, s, s))  # 1 2  3 4
     big_cube[1:0 + b, 1:0 + b, b:1 + b] = slice_face_view(2, 1, True, 1, (s, s, 1))  # 6 8  2 4
     big_cube[1:0 + b, b:1 + b, 1:0 + b] = slice_face_view(0, 2, False, 0, (s, 1, s))  # 3 4  7 8
 
@@ -187,7 +186,7 @@ def fill_board_with_cube_faces():
         board[0 * s:0 * s + s, 1 * s:1 * s + s] = unslice_face_view(orig_big_cube[1:0 + b, 1:0 + b, 0:1 + 0], False, 0)
         board[1 * s:1 * s + s, 1 * s:1 * s + s] = unslice_face_view(orig_big_cube[b:1 + b, 1:0 + b, 1:0 + b], True, 0)
         board[2 * s:2 * s + s, 0 * s:0 * s + s] = unslice_face_view(orig_big_cube[1:0 + b, 0:1 + 0, 1:0 + b], True, 1)
-        board[3 * s:3 * s + s, 0 * s:0 * s + s] = unslice_face_view(orig_big_cube[0:1 + 0, 1:0 + b, 1:0 + b], False, 2)
+        board[3 * s:3 * s + s, 0 * s:0 * s + s] = unslice_face_view(orig_big_cube[0:1 + 0, 1:0 + b, 1:0 + b], False, 0)
         board[2 * s:2 * s + s, 1 * s:1 * s + s] = unslice_face_view(orig_big_cube[1:0 + b, 1:0 + b, b:1 + b], True, 1)
         board[0 * s:0 * s + s, 2 * s:2 * s + s] = unslice_face_view(orig_big_cube[1:0 + b, b:1 + b, 1:0 + b], False, 0)
 
@@ -198,7 +197,8 @@ def fill_board_with_cube_faces():
 # print_3d_top_layer(np.rot90(big_cube, k=3, axes=(2, 1)))
 # print_3d_top_layer(np.rot90(big_cube, k=1, axes=(2, 0)))
 # print_3d_top_layer(np.rot90(big_cube, k=3, axes=(2, 0)))
-
+#
+# exit()
 # print_3d_all_layers(big_cube)
 
 # print_3d_top_layer(big_cube)
@@ -248,7 +248,9 @@ for inst_i, instruction in enumerate(instructions):
         trail_letter = 'a'
     distance, rotation_direction_number = instruction  # a number and then a +1/-1
     for _ in range(distance):
-        debug_print_step_and_wait()
+        # debug_print_step_and_wait()
+        # if inst_i + 5 >= len(instructions):
+        #     debug_print_step_and_wait()
         # print(f"Current position on top of cube: {position_2d}")
         x, y = position_2d
         position_2d = (x, y + 1)
@@ -289,7 +291,7 @@ big_cube[position_2d[0], position_2d[1], 0] = '▇'
 if region_size == 4:  # EXAMPLE INPUT
     final_facing = 3
 else:  # MY REAL INPUT
-    final_facing = 2
+    final_facing = 3
 
 # print_3d_top_layer(big_cube)
 fill_board_with_cube_faces()
@@ -299,4 +301,4 @@ print(position, final_facing)
 final_row = position[0] + 1
 final_col = position[1] + 1
 final_final_password = 1000 * final_row + 4 * final_col + final_facing
-print("Part 2:", final_final_password)  # 123210 too low, 124210 too low, 126211 also too low
+print("Part 2:", final_final_password)  # 146011, holy hell, this took so much time
