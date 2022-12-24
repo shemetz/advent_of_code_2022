@@ -1,6 +1,19 @@
-import copy
 import math
 import numpy as np
+
+"""
+CORE ALGORITHM IDEAS:
+
+1. to track blizzards, keep them in a numpy array where each grid square is 4 bits, one per blizzard direction.
+no more than one blizzard per direction can be in a single location (due to how they were created) so it's good.
+if e.g. one up-facing blizzard and one right-facing blizzard both occupy the same space, that space's bits will be 1001.
+
+2. pathfinding is done in a BFS-like fashion, where I maintain a set of ALL current positions and ALL next positions,
+along with a time counter.  each big loop, I use positions to calculate all legal next_positions, and then tick time.
+a solution will be found when one of the positions reaches the goal.
+
+3. for part 2, when reaching the exit I destroy all other positions and exchange the goals, and then repeat it later.
+"""
 
 with open('day24.txt') as input_file:
     input_lines = input_file.readlines()
@@ -8,106 +21,102 @@ with open('day24.txt') as input_file:
 
 valley_width = len(input_lines[0]) - 2
 valley_height = len(input_lines) - 2
-START_POSITION = 0 - 1j
-END_POSITION = valley_width - 1 + 1j * valley_height
-BIG_NUMBER = 999999999
-
+TOP_LEFT_VALLEY_OPENING = 0 - 1j
+BOTTOM_RIGHT_VALLEY_OPENING = valley_width - 1 + 1j * valley_height
 blizzard_simulation_cache = {}
 
 
-def simulate_next_blizzards_state(blizzards: tuple, time: int) -> tuple:
+def init_blizzards():
+    blizzards_start_array = np.full((valley_height, valley_width), 0)
+    for row_i, line in enumerate(input_lines):
+        for col_i, char in enumerate(line):
+            # ignoring the sides of the valley
+            row, col = row_i - 1, col_i - 1
+            if 0 <= row < valley_height and 0 <= col < valley_width:
+                blizz_dir = {'>': +1, 'v': +2, '<': +4, '^': +8, '.': 0, '#': 0}[char]
+                blizzards_start_array[row, col] += blizz_dir
+    return blizzards_start_array
+
+
+def simulate_next_blizzards_state(blizzards: np.ndarray, time: int) -> np.ndarray:
     # cycles after this much time
     # NOTE:  this cache is almost useless!  because real input has LCM=600 and parts 1+2 answers are about 300 and 900
     time_mod = time % math.lcm(valley_width, valley_height)
     if time_mod in blizzard_simulation_cache:
         return blizzard_simulation_cache[time_mod]
-    next_blizzards_array = np.full((valley_height, valley_width), 0, dtype=complex)
-    for r, line in enumerate(blizzards):
-        for c, blizzes in enumerate(line):
-            if int(blizzes.imag) in (-1, +1):
-                next_blizzards_array[(r - 1) % valley_height, c] += -1j
-            if int(blizzes.imag) in (+2, +1,):
-                next_blizzards_array[(r + 1) % valley_height, c] += 2j
-            if int(blizzes.real) in (-1, +1):
-                next_blizzards_array[r, (c - 1) % valley_width] += -1
-            if int(blizzes.real) in (+2, +1):
-                next_blizzards_array[r, (c + 1) % valley_width] += 2
-    next_blizzards_tuple = tuple(tuple(r for r in row) for row in next_blizzards_array)
-    blizzard_simulation_cache[time_mod] = next_blizzards_tuple
-    return next_blizzards_tuple
+    next_blizzards_array = np.full((valley_height, valley_width), 0)
+    for row, line in enumerate(blizzards):
+        for col, blizz_bits in enumerate(line):
+            next_blizzards_array[(row + 0) % valley_height, (col + 1) % valley_width] += blizz_bits & 1
+            next_blizzards_array[(row + 1) % valley_height, (col + 0) % valley_width] += blizz_bits & 2
+            next_blizzards_array[(row + 0) % valley_height, (col - 1) % valley_width] += blizz_bits & 4
+            next_blizzards_array[(row - 1) % valley_height, (col + 0) % valley_width] += blizz_bits & 8
+    blizzard_simulation_cache[time_mod] = next_blizzards_array
+    return next_blizzards_array
 
 
-def print_state(blizzards: tuple, positions: list):
-    positions_set = set(positions)
+def print_state(blizzards: np.ndarray, positions: set):
+    print()
+    print('#' + ('E' if TOP_LEFT_VALLEY_OPENING in positions else '.') + '#' * valley_width)
     for r, line in enumerate(blizzards):
-        for c, blizzes in enumerate(line):
-            char = {-1j: '^', -1: '<', +2j: 'v', +2: '>', +2: '>', 0: '.'}.get(blizzes, None)
+        print('#', end="")
+        for c, blizz_bits in enumerate(line):
+            char = {+1: '>', +2: 'v', +4: '<', +8: '^', 0: '.'}.get(blizz_bits)
             if char is None:
                 cn = 0
-                cn += 1 if blizzes.real != 0 else 0
-                cn += 1 if blizzes.imag != 0 else 0
-                cn += 1 if blizzes.real == +1 else 0
-                cn += 1 if blizzes.imag == +1 else 0
+                cn += (blizz_bits & 1) // 1
+                cn += (blizz_bits & 2) // 2
+                cn += (blizz_bits & 4) // 4
+                cn += (blizz_bits & 8) // 8
                 char = str(cn)
-            if char == '.' and (r * 1j + c) in positions_set:
+            if char == '.' and (r * 1j + c) in positions:
                 char = 'E'
             print(char, end="")
+        print('#', end="")
         print()
+    print('#' * valley_width + ('E' if BOTTOM_RIGHT_VALLEY_OPENING in positions else '.') + '#')
 
 
-def bfs_solve(start_position: complex, start_blizzards: tuple):
-    start_pos, end_pos = start_position, END_POSITION
+def bfs_solve(start_position: complex, blizzards: np.ndarray):
     time_passed = 0
-    next_positions_set = set()
-    positions = [start_position]
-    blizzards = copy.deepcopy(start_blizzards)
-    next_positions = []
+    positions = {start_position}
+    next_positions = set()
+    start_pos, end_pos = start_position, BOTTOM_RIGHT_VALLEY_OPENING
     flipped_count = 0
     while True:
         # print_state(blizzards, positions)
+        blizzards = simulate_next_blizzards_state(blizzards, time_passed)
         while positions:
-            position = positions.pop(0)
+            position = positions.pop()
             if position == end_pos:
                 if flipped_count == 0:
                     print("Part 1 solution:", time_passed)  # 288
                 if flipped_count < 2:
                     flipped_count += 1
                     start_pos, end_pos = end_pos, start_pos
-                    positions = []
-                    next_positions = []
-                    next_positions_set = set()
+                    positions = set()
+                    next_positions = set()
                 elif flipped_count == 2:
                     print("Part 2 solution:", time_passed)  # 861
                     return
-            if position != start_pos:
-                if not 0 <= position.real < valley_width or not 0 <= position.imag < valley_height:
-                    continue
-                if blizzards[int(position.imag)][int(position.real)] != 0:
-                    continue
             for next_dir in (+1j, +1, 0, -1j, -1):
                 next_position = position + next_dir
-                if next_position not in next_positions_set:
-                    next_positions.append(next_position)
-                    next_positions_set.add(next_position)
+                if next_position != start_pos and next_position != end_pos:
+                    if not 0 <= next_position.real < valley_width or not 0 <= next_position.imag < valley_height:
+                        # hit sides of valley
+                        continue
+                    if blizzards[int(next_position.imag)][int(next_position.real)] != 0:
+                        # hit blizzard
+                        continue
+                if next_position not in next_positions:
+                    next_positions.add(next_position)
         time_passed += 1
-        blizzards = simulate_next_blizzards_state(blizzards, time_passed)
         positions = next_positions
-        next_positions = []
-        next_positions_set = set()
-        # print(f"passed {time_passed}, len positions {len(positions)}")
+        next_positions = set()
 
 
 def solve_parts():
-    # keeping counts in single complex number, but two opposing blizzards are odd and even so it's ok
-    blizzards_start_array = np.full((valley_height, valley_width), 0, dtype=complex)
-    for r, line in enumerate(input_lines):
-        for c, char in enumerate(line):
-            blizz_dir = {'^': -1j, '<': -1, 'v': +2j, '>': +2, '.': 0, '#': 0}[char]
-            if blizz_dir != 0:
-                blizzards_start_array[r - 1, c - 1] += blizz_dir
-    blizzards_start_tuple = tuple(tuple(r for r in row) for row in blizzards_start_array)
-
-    bfs_solve(0 - 1j, blizzards_start_tuple)
+    bfs_solve(0 - 1j, init_blizzards())
 
 
 solve_parts()
