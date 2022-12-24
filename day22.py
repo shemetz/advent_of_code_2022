@@ -4,7 +4,7 @@ from time import sleep
 
 import numpy as np
 
-with open('day22.txt') as input_file:
+with open('day22_altered.txt') as input_file:
     input_lines = input_file.readlines()
     input_lines = [line.strip('\n') for line in input_lines]
 
@@ -94,7 +94,7 @@ print(position, final_facing)
 final_row = position[0] + 1
 final_col = position[1] + 1
 final_password = 1000 * final_row + 4 * final_col + final_facing
-print("Part 1:", final_password)  # maybe 196134
+print("Part 1:", final_password)  # 196134
 # print(rot90position(*position, 0))
 # print_board()
 # print(rot90position(*position, 1))
